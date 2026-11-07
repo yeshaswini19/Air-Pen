@@ -65,7 +65,7 @@ export class DrawingEngine {
     };
   }
 
-  // Shared method for starting both mouse and gesture strokes.
+  // Start a stroke using mouse or gesture input.
   startDrawingAt(point) {
     if (this.isDrawing) return;
 
@@ -84,14 +84,13 @@ export class DrawingEngine {
     this.render();
   }
 
-  // Shared method for adding a point to the active stroke.
+  // Add a point to the active stroke.
   drawAt(point) {
     if (!this.isDrawing || !this.currentStroke) return;
 
     const lastPoint =
       this.currentStroke.points[this.currentStroke.points.length - 1];
 
-    // Ignore extremely small movements to reduce unnecessary points.
     const distance = Math.hypot(
       point.x - lastPoint.x,
       point.y - lastPoint.y
@@ -129,18 +128,27 @@ export class DrawingEngine {
     this.currentStroke = null;
   }
 
+  // Render an individual brush or eraser stroke.
   drawStroke(stroke) {
     const points = stroke.points;
 
     if (!points.length) return;
 
+    this.ctx.save();
+
     this.ctx.beginPath();
+
     this.ctx.lineWidth = stroke.size;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
+    this.ctx.globalAlpha = 1;
 
     if (stroke.tool === 'Eraser') {
+      // Remove existing canvas pixels.
       this.ctx.globalCompositeOperation = 'destination-out';
+
+      // Explicit opaque source for reliable erasing.
+      this.ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
     } else {
       this.ctx.globalCompositeOperation = 'source-over';
       this.ctx.strokeStyle = stroke.color;
@@ -157,9 +165,11 @@ export class DrawingEngine {
     }
 
     this.ctx.stroke();
-    this.ctx.globalCompositeOperation = 'source-over';
+
+    this.ctx.restore();
   }
 
+  // Redraw all strokes in their original order.
   render() {
     const rect = this.canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;

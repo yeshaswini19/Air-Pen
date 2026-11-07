@@ -196,7 +196,6 @@ document.querySelector('#app').innerHTML = `
   </div>
 `;
 
-
 // --------------------------------------------------
 // DRAWING ENGINE
 // --------------------------------------------------
@@ -212,18 +211,22 @@ function updateCanvasEmptyState() {
   canvasEmpty.classList.toggle('hidden', hasArtwork);
 }
 
+function updateActiveTool(tool) {
+  activeToolLabel.textContent = tool;
+
+  document.querySelectorAll('.tool-button').forEach(button => {
+    button.classList.toggle('active', button.dataset.tool === tool);
+  });
+}
+
 document.querySelectorAll('.tool-button').forEach(button => {
   button.addEventListener('click', () => {
     const tool = button.dataset.tool;
 
-    document.querySelectorAll('.tool-button').forEach(item => {
-      item.classList.remove('active');
-    });
-
-    button.classList.add('active');
-    activeToolLabel.textContent = tool;
-
+    drawingEngine.stopDrawing();
     drawingEngine.setTool(tool);
+
+    updateActiveTool(tool);
   });
 });
 
@@ -265,7 +268,6 @@ document.querySelector('#clear-btn').addEventListener('click', () => {
   }
 });
 
-
 // --------------------------------------------------
 // ZOOM DISPLAY
 // --------------------------------------------------
@@ -284,14 +286,12 @@ document.querySelector('#zoom-out').addEventListener('click', () => {
   zoomLevel.textContent = `${zoom}%`;
 });
 
-
 // --------------------------------------------------
 // CAMERA MANAGER
 // --------------------------------------------------
 
 const video = document.querySelector('#camera-video');
 const cameraManager = new CameraManager(video);
-
 
 // --------------------------------------------------
 // GESTURE RECOGNITION
@@ -317,48 +317,75 @@ function resetGestureRecognizers() {
   gestureRecognizers.clear();
 }
 
-// Convert a normalised MediaPipe hand position into drawing canvas coordinates.
-function getCanvasPosition(landmarks) {
+// Convert a normalised MediaPipe position into canvas coordinates.
+function getCanvasPosition(landmarks, gesture) {
   const rect = canvas.getBoundingClientRect();
 
-  // Use the midpoint between thumb tip (4) and index tip (8).
-  const thumbTip = landmarks[4];
-  const indexTip = landmarks[8];
+  let midpointX;
+  let midpointY;
 
-  const midpointX = (thumbTip.x + indexTip.x) / 2;
-  const midpointY = (thumbTip.y + indexTip.y) / 2;
+  if (gesture === 'PINCH') {
+    // Pinch position: midpoint between thumb tip and index tip.
+    midpointX = (landmarks[4].x + landmarks[8].x) / 2;
+    midpointY = (landmarks[4].y + landmarks[8].y) / 2;
+  } else {
+    // Eraser position: approximate centre of the palm.
+    const palmLandmarks = [0, 5, 9, 13, 17];
+
+    midpointX = palmLandmarks.reduce(
+      (sum, index) => sum + landmarks[index].x, 0
+    ) / palmLandmarks.length;
+
+    midpointY = palmLandmarks.reduce(
+      (sum, index) => sum + landmarks[index].y, 0
+    ) / palmLandmarks.length;
+  }
 
   return {
-    // Mirror X to match the selfie-style camera preview.
     x: (1 - midpointX) * rect.width,
     y: midpointY * rect.height
   };
 }
 
-
 // --------------------------------------------------
-// PINCH-TO-DRAW
+// PINCH-TO-DRAW + FIST-TO-ERASE
 // --------------------------------------------------
 
 function handleGestureDrawing(result) {
-  // Only a stable PINCH activates drawing.
-  if (result?.stable && result.gesture === 'PINCH') {
-    const point = getCanvasPosition(result.landmarks);
-
-    if (!drawingEngine.isDrawing) {
-      drawingEngine.startDrawingAt(point);
-    } else {
-      drawingEngine.drawAt(point);
-    }
-
-    updateCanvasEmptyState();
+  if (!result?.stable) {
+    drawingEngine.stopDrawing();
     return;
   }
 
-  // Releasing the pinch ends the current stroke.
-  drawingEngine.stopDrawing();
-}
+  let activeGestureTool = null;
 
+  if (result.gesture === 'PINCH') {
+    activeGestureTool = 'Brush';
+  } else if (result.gesture === 'FIST') {
+    activeGestureTool = 'Eraser';
+  } else {
+    // Open palm, pointing or unknown gesture stops the current stroke.
+    drawingEngine.stopDrawing();
+    return;
+  }
+
+  // Change tools only when necessary.
+  if (drawingEngine.tool !== activeGestureTool) {
+    drawingEngine.stopDrawing();
+    drawingEngine.setTool(activeGestureTool);
+    updateActiveTool(activeGestureTool);
+  }
+
+  const point = getCanvasPosition(result.landmarks, result.gesture);
+
+  if (!drawingEngine.isDrawing) {
+    drawingEngine.startDrawingAt(point);
+  } else {
+    drawingEngine.drawAt(point);
+  }
+
+  updateCanvasEmptyState();
+}
 
 // --------------------------------------------------
 // HAND TRACKER
@@ -391,7 +418,6 @@ const handTracker = new HandTracker(
     const activeHandKeys = new Set();
     const detectedGestures = [];
 
-    // First detected hand is currently our drawing hand.
     let drawingHandResult = null;
 
     landmarks.forEach((handLandmarks, index) => {
@@ -437,13 +463,12 @@ const handTracker = new HandTracker(
 
     gestureDetail.textContent = detectedGestures.join(' · ');
 
-    // Drawing currently uses only the first detected hand.
+    // The first detected hand controls drawing and erasing.
     if (drawingHandResult) {
       handleGestureDrawing(drawingHandResult);
     }
   }
 );
-
 
 // --------------------------------------------------
 // CAMERA UI
@@ -513,7 +538,7 @@ cameraToggleButton.addEventListener('click', async () => {
       await handTracker.start();
 
       cameraStatus.textContent = 'Camera and hand tracking are active.';
-      console.log('AIR PEN pinch-to-draw is ready.');
+      console.log('AIR PEN gesture drawing and erasing are ready.');
 
     } catch (trackingError) {
       handTracker.stop();
@@ -540,7 +565,6 @@ cameraToggleButton.addEventListener('click', async () => {
   }
 });
 
-
 // --------------------------------------------------
 // PLACEHOLDER ACTIONS
 // --------------------------------------------------
@@ -556,7 +580,6 @@ document.querySelector('#export-btn').addEventListener('click', () => {
 document.querySelector('#add-layer-btn').addEventListener('click', () => {
   alert('Layer management will be implemented in a later phase.');
 });
-
 
 // --------------------------------------------------
 // KEYBOARD SHORTCUTS
@@ -584,7 +607,6 @@ document.addEventListener('keydown', event => {
     updateCanvasEmptyState();
   }
 });
-
 
 // --------------------------------------------------
 // CLEANUP
