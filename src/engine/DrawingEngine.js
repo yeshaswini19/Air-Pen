@@ -35,11 +35,11 @@ export class DrawingEngine {
   }
 
   bindEvents() {
-    this.canvas.addEventListener('pointerdown', (event) => {
+    this.canvas.addEventListener('pointerdown', event => {
       this.startDrawing(event);
     });
 
-    this.canvas.addEventListener('pointermove', (event) => {
+    this.canvas.addEventListener('pointermove', event => {
       this.draw(event);
     });
 
@@ -51,7 +51,7 @@ export class DrawingEngine {
       this.stopDrawing();
     });
 
-    this.canvas.addEventListener('contextmenu', (event) => {
+    this.canvas.addEventListener('contextmenu', event => {
       event.preventDefault();
     });
   }
@@ -65,12 +65,9 @@ export class DrawingEngine {
     };
   }
 
-  startDrawing(event) {
-    if (event.button !== 0) return;
-
-    event.preventDefault();
-
-    const point = this.getPointerPosition(event);
+  // Shared method for starting both mouse and gesture strokes.
+  startDrawingAt(point) {
+    if (this.isDrawing) return;
 
     this.isDrawing = true;
 
@@ -78,25 +75,53 @@ export class DrawingEngine {
       tool: this.tool,
       color: this.color,
       size: this.brushSize,
-      points: [point]
+      points: [{ x: point.x, y: point.y }]
     };
 
     this.strokes.push(this.currentStroke);
     this.redoStack = [];
 
-    this.canvas.setPointerCapture(event.pointerId);
+    this.render();
+  }
+
+  // Shared method for adding a point to the active stroke.
+  drawAt(point) {
+    if (!this.isDrawing || !this.currentStroke) return;
+
+    const lastPoint =
+      this.currentStroke.points[this.currentStroke.points.length - 1];
+
+    // Ignore extremely small movements to reduce unnecessary points.
+    const distance = Math.hypot(
+      point.x - lastPoint.x,
+      point.y - lastPoint.y
+    );
+
+    if (distance < 1) return;
+
+    this.currentStroke.points.push({
+      x: point.x,
+      y: point.y
+    });
 
     this.render();
+  }
+
+  // Mouse input.
+  startDrawing(event) {
+    if (event.button !== 0) return;
+
+    event.preventDefault();
+
+    this.startDrawingAt(this.getPointerPosition(event));
+
+    this.canvas.setPointerCapture(event.pointerId);
   }
 
   draw(event) {
     if (!this.isDrawing || !this.currentStroke) return;
 
-    const point = this.getPointerPosition(event);
-
-    this.currentStroke.points.push(point);
-
-    this.render();
+    this.drawAt(this.getPointerPosition(event));
   }
 
   stopDrawing() {
@@ -143,7 +168,7 @@ export class DrawingEngine {
 
     this.ctx.clearRect(0, 0, rect.width, rect.height);
 
-    this.strokes.forEach((stroke) => {
+    this.strokes.forEach(stroke => {
       this.drawStroke(stroke);
     });
   }
@@ -163,19 +188,25 @@ export class DrawingEngine {
   undo() {
     if (!this.strokes.length) return;
 
+    this.stopDrawing();
     this.redoStack.push(this.strokes.pop());
+
     this.render();
   }
 
   redo() {
     if (!this.redoStack.length) return;
 
+    this.stopDrawing();
     this.strokes.push(this.redoStack.pop());
+
     this.render();
   }
 
   clear() {
     if (!this.strokes.length) return;
+
+    this.stopDrawing();
 
     this.redoStack = [...this.strokes];
     this.strokes = [];

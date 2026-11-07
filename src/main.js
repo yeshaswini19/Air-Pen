@@ -4,6 +4,7 @@ import './style.css';
 import { DrawingEngine } from './engine/DrawingEngine.js';
 import { CameraManager } from './camera/CameraManager.js';
 import { HandTracker } from './tracking/HandTracker.js';
+import { GestureRecognizer } from './gestures/GestureRecognizer.js';
 
 document.querySelector('#app').innerHTML = `
   <div class="app-shell">
@@ -171,7 +172,7 @@ document.querySelector('#app').innerHTML = `
         </section>
 
         <section class="inspector-section gesture-section">
-          <div class="panel-label">HAND TRACKING</div>
+          <div class="panel-label">GESTURE RECOGNITION</div>
 
           <div class="gesture-status">
             <span class="gesture-dot" id="gesture-dot"></span>
@@ -179,7 +180,7 @@ document.querySelector('#app').innerHTML = `
           </div>
 
           <p class="muted-note" id="gesture-detail">
-            Start your camera to detect your hands.
+            Start your camera to recognise hand gestures.
           </p>
         </section>
 
@@ -206,9 +207,10 @@ const drawingEngine = new DrawingEngine(canvas);
 const canvasEmpty = document.querySelector('#canvas-empty');
 const activeToolLabel = document.querySelector('#active-tool-label');
 
-canvas.addEventListener('pointerdown', () => {
-  canvasEmpty.classList.add('hidden');
-});
+function updateCanvasEmptyState() {
+  const hasArtwork = drawingEngine.strokes.length > 0;
+  canvasEmpty.classList.toggle('hidden', hasArtwork);
+}
 
 document.querySelectorAll('.tool-button').forEach(button => {
   button.addEventListener('click', () => {
@@ -245,11 +247,6 @@ document.querySelectorAll('.color-swatch').forEach(swatch => {
     drawingEngine.setColor(swatch.dataset.color);
   });
 });
-
-function updateCanvasEmptyState() {
-  const hasArtwork = drawingEngine.strokes.length > 0;
-  canvasEmpty.classList.toggle('hidden', hasArtwork);
-}
 
 document.querySelector('#undo-btn').addEventListener('click', () => {
   drawingEngine.undo();
@@ -297,6 +294,73 @@ const cameraManager = new CameraManager(video);
 
 
 // --------------------------------------------------
+// GESTURE RECOGNITION
+// --------------------------------------------------
+
+const gestureRecognizers = new Map();
+
+const gestureNames = {
+  PINCH: 'Pinch',
+  OPEN_PALM: 'Open palm',
+  FIST: 'Fist',
+  POINTING: 'Pointing',
+  UNKNOWN: 'Hand detected',
+  NONE: 'Detecting gesture...'
+};
+
+function getGestureLabel(gesture) {
+  return gestureNames[gesture] || 'Detecting gesture...';
+}
+
+function resetGestureRecognizers() {
+  gestureRecognizers.forEach(recognizer => recognizer.reset());
+  gestureRecognizers.clear();
+}
+
+// Convert a normalised MediaPipe hand position into drawing canvas coordinates.
+function getCanvasPosition(landmarks) {
+  const rect = canvas.getBoundingClientRect();
+
+  // Use the midpoint between thumb tip (4) and index tip (8).
+  const thumbTip = landmarks[4];
+  const indexTip = landmarks[8];
+
+  const midpointX = (thumbTip.x + indexTip.x) / 2;
+  const midpointY = (thumbTip.y + indexTip.y) / 2;
+
+  return {
+    // Mirror X to match the selfie-style camera preview.
+    x: (1 - midpointX) * rect.width,
+    y: midpointY * rect.height
+  };
+}
+
+
+// --------------------------------------------------
+// PINCH-TO-DRAW
+// --------------------------------------------------
+
+function handleGestureDrawing(result) {
+  // Only a stable PINCH activates drawing.
+  if (result?.stable && result.gesture === 'PINCH') {
+    const point = getCanvasPosition(result.landmarks);
+
+    if (!drawingEngine.isDrawing) {
+      drawingEngine.startDrawingAt(point);
+    } else {
+      drawingEngine.drawAt(point);
+    }
+
+    updateCanvasEmptyState();
+    return;
+  }
+
+  // Releasing the pinch ends the current stroke.
+  drawingEngine.stopDrawing();
+}
+
+
+// --------------------------------------------------
 // HAND TRACKER
 // --------------------------------------------------
 
@@ -310,18 +374,73 @@ const handTracker = new HandTracker(
   video,
   handOverlay,
   ({ handCount, landmarks, handednesses }) => {
-    if (handCount === 0) {
+
+    if (handCount === 0 || !landmarks?.length) {
+      drawingEngine.stopDrawing();
+      resetGestureRecognizers();
+
       gestureStatusText.textContent = 'No hands detected';
       gestureDetail.textContent = 'Show your hand clearly to the camera.';
-    } else {
-      gestureStatusText.textContent =
-        `${handCount} ${handCount === 1 ? 'hand' : 'hands'} detected`;
 
-      gestureDetail.textContent =
-        `${handCount * 21} landmarks detected successfully.`;
+      gestureDot.classList.remove('tracking-active');
+      return;
     }
 
-    gestureDot.classList.toggle('tracking-active', handCount > 0);
+    gestureDot.classList.add('tracking-active');
+
+    const activeHandKeys = new Set();
+    const detectedGestures = [];
+
+    // First detected hand is currently our drawing hand.
+    let drawingHandResult = null;
+
+    landmarks.forEach((handLandmarks, index) => {
+      const handLabel =
+        handednesses?.[index]?.[0]?.categoryName || `Hand ${index + 1}`;
+
+      activeHandKeys.add(handLabel);
+
+      let recognizer = gestureRecognizers.get(handLabel);
+
+      if (!recognizer) {
+        recognizer = new GestureRecognizer({
+          smoothingFactor: 0.35,
+          stableFramesRequired: 4
+        });
+
+        gestureRecognizers.set(handLabel, recognizer);
+      }
+
+      const result = recognizer.update(handLandmarks);
+
+      if (index === 0) {
+        drawingHandResult = result;
+      }
+
+      const gestureLabel = result.stable
+        ? getGestureLabel(result.gesture)
+        : 'Detecting gesture...';
+
+      detectedGestures.push(`${handLabel}: ${gestureLabel}`);
+    });
+
+    // Remove recognizers for hands that are no longer visible.
+    for (const [handLabel, recognizer] of gestureRecognizers) {
+      if (!activeHandKeys.has(handLabel)) {
+        recognizer.reset();
+        gestureRecognizers.delete(handLabel);
+      }
+    }
+
+    gestureStatusText.textContent =
+      `${handCount} ${handCount === 1 ? 'hand' : 'hands'} detected`;
+
+    gestureDetail.textContent = detectedGestures.join(' · ');
+
+    // Drawing currently uses only the first detected hand.
+    if (drawingHandResult) {
+      handleGestureDrawing(drawingHandResult);
+    }
   }
 );
 
@@ -353,8 +472,11 @@ function updateCameraUI(isActive) {
 }
 
 function resetTrackingUI() {
+  drawingEngine.stopDrawing();
+  resetGestureRecognizers();
+
   gestureStatusText.textContent = 'Tracking not started';
-  gestureDetail.textContent = 'Start your camera to detect your hands.';
+  gestureDetail.textContent = 'Start your camera to recognise hand gestures.';
   gestureDot.classList.remove('tracking-active');
 }
 
@@ -363,6 +485,7 @@ cameraToggleButton.addEventListener('click', async () => {
 
   if (cameraManager.isActive) {
     handTracker.stop();
+    drawingEngine.stopDrawing();
     cameraManager.stop();
 
     updateCameraUI(false);
@@ -385,12 +508,16 @@ cameraToggleButton.addEventListener('click', async () => {
     cameraStatus.textContent = 'Camera connected. Loading hand tracking...';
 
     try {
+      resetGestureRecognizers();
+
       await handTracker.start();
 
       cameraStatus.textContent = 'Camera and hand tracking are active.';
-      console.log('AIR PEN hand tracking started.');
+      console.log('AIR PEN pinch-to-draw is ready.');
+
     } catch (trackingError) {
       handTracker.stop();
+      resetTrackingUI();
 
       cameraStatus.textContent =
         `Camera is working, but hand tracking failed: ${trackingError.message}`;
@@ -407,6 +534,7 @@ cameraToggleButton.addEventListener('click', async () => {
     cameraStatus.classList.add('error');
 
     console.error('Camera error:', cameraError);
+
   } finally {
     cameraToggleButton.disabled = false;
   }
@@ -464,7 +592,9 @@ document.addEventListener('keydown', event => {
 
 window.addEventListener('beforeunload', () => {
   handTracker.destroy();
+  drawingEngine.stopDrawing();
   cameraManager.stop();
+  resetGestureRecognizers();
 });
 
 console.log('AIR PEN workspace initialized successfully.');
