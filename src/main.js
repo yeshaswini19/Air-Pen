@@ -13,9 +13,7 @@ document.querySelector('#app').innerHTML = `
         <span class="brand-name">AIR PEN</span>
         <span class="brand-tag">DRAW BEYOND THE SCREEN</span>
       </div>
-
       <div class="document-title">Untitled Artwork</div>
-
       <div class="top-actions">
         <button class="icon-button" id="undo-btn" title="Undo">↶</button>
         <button class="icon-button" id="redo-btn" title="Redo">↷</button>
@@ -28,28 +26,14 @@ document.querySelector('#app').innerHTML = `
     <main class="workspace">
       <aside class="left-panel">
         <div class="panel-label">TOOLS</div>
-
         <div class="tool-list">
-          <button class="tool-button active" data-tool="Brush">
-            <span>✎</span><small>Brush</small>
-          </button>
-          <button class="tool-button" data-tool="Eraser">
-            <span>◩</span><small>Eraser</small>
-          </button>
-          <button class="tool-button" data-tool="Select">
-            <span>⌖</span><small>Select</small>
-          </button>
-          <button class="tool-button" data-tool="Shapes">
-            <span>◇</span><small>Shapes</small>
-          </button>
-          <button class="tool-button" data-tool="Symmetry">
-            <span>✥</span><small>Symmetry</small>
-          </button>
-          <button class="tool-button" data-tool="Mandala">
-            <span>❋</span><small>Mandala</small>
-          </button>
+          <button class="tool-button active" data-tool="Brush"><span>✎</span><small>Brush</small></button>
+          <button class="tool-button" data-tool="Eraser"><span>◩</span><small>Eraser</small></button>
+          <button class="tool-button" data-tool="Select"><span>⌖</span><small>Select</small></button>
+          <button class="tool-button" data-tool="Shapes"><span>◇</span><small>Shapes</small></button>
+          <button class="tool-button" data-tool="Symmetry"><span>✥</span><small>Symmetry</small></button>
+          <button class="tool-button" data-tool="Mandala"><span>❋</span><small>Mandala</small></button>
         </div>
-
         <div class="left-panel-bottom">
           <span class="shortcut-label">AIR PEN v1.0</span>
         </div>
@@ -61,7 +45,6 @@ document.querySelector('#app').innerHTML = `
             <span class="canvas-heading">Creative workspace</span>
             <span class="canvas-subheading">Your space. Your imagination.</span>
           </div>
-
           <div class="canvas-controls">
             <button id="zoom-out" class="small-control">−</button>
             <span id="zoom-level">100%</span>
@@ -71,12 +54,10 @@ document.querySelector('#app').innerHTML = `
 
         <div class="canvas-container">
           <canvas id="drawing-canvas"></canvas>
-
           <div class="air-cursor" id="air-cursor" aria-hidden="true">
             <span class="air-cursor-core"></span>
             <span class="air-cursor-label">AIR PEN</span>
           </div>
-
           <div class="canvas-empty" id="canvas-empty">
             <span class="empty-symbol">✳</span>
             <h2>Your canvas is waiting.</h2>
@@ -93,12 +74,10 @@ document.querySelector('#app').innerHTML = `
       <aside class="right-panel">
         <section class="inspector-section">
           <div class="panel-label">TOOL SETTINGS</div>
-
           <div class="setting-row">
             <span>Active tool</span>
             <strong id="active-tool-label">Brush</strong>
           </div>
-
           <div class="setting-block">
             <div class="setting-row">
               <label for="brush-size">Brush size</label>
@@ -138,23 +117,16 @@ document.querySelector('#app').innerHTML = `
             <div class="panel-label">CAMERA STUDIO</div>
             <span class="camera-indicator" id="camera-indicator"></span>
           </div>
-
           <div class="camera-preview" id="camera-preview">
             <video id="camera-video" autoplay muted playsinline></video>
             <canvas id="hand-overlay"></canvas>
-
             <div class="camera-placeholder" id="camera-placeholder">
               <span class="camera-placeholder-icon">◎</span>
               <span>Camera is inactive</span>
             </div>
-
             <span class="camera-live-label" id="camera-live-label">LIVE</span>
           </div>
-
-          <div class="camera-status" id="camera-status" role="status">
-            Camera is currently off.
-          </div>
-
+          <div class="camera-status" id="camera-status" role="status">Camera is currently off.</div>
           <button class="camera-button" id="camera-toggle-btn">
             <span id="camera-button-icon">◉</span>
             <span id="camera-button-text">Start Camera</span>
@@ -167,9 +139,7 @@ document.querySelector('#app').innerHTML = `
             <span class="gesture-dot" id="gesture-dot"></span>
             <span id="gesture-status-text">Tracking not started</span>
           </div>
-          <p class="muted-note" id="gesture-detail">
-            Start your camera to recognise hand gestures.
-          </p>
+          <p class="muted-note" id="gesture-detail">Start your camera to recognise hand gestures.</p>
         </section>
       </aside>
     </main>
@@ -191,8 +161,7 @@ const canvasEmpty = document.querySelector('#canvas-empty');
 const activeToolLabel = document.querySelector('#active-tool-label');
 
 function updateCanvasEmptyState() {
-  const hasArtwork = drawingEngine.strokes.length > 0;
-  canvasEmpty.classList.toggle('hidden', hasArtwork);
+  canvasEmpty.classList.toggle('hidden', drawingEngine.strokes.length > 0);
 }
 
 function updateActiveTool(tool) {
@@ -206,12 +175,13 @@ function updateActiveTool(tool) {
 document.querySelectorAll('.tool-button').forEach(button => {
   button.addEventListener('click', () => {
     const tool = button.dataset.tool;
-
     drawingEngine.stopDrawing();
     drawingEngine.setTool(tool);
     updateActiveTool(tool);
   });
 });
+
+// BRUSH SIZE
 
 const brushSizeInput = document.querySelector('#brush-size');
 const brushSizeValue = document.querySelector('#brush-size-value');
@@ -220,7 +190,14 @@ brushSizeInput.addEventListener('input', event => {
   const size = Number(event.target.value);
   brushSizeValue.textContent = `${size} px`;
   drawingEngine.setBrushSize(size);
+
+  // Update the visible preview immediately if it is on screen.
+  if (airCursor.classList.contains('visible')) {
+    updateAirCursorAppearance(currentCursorMode);
+  }
 });
+
+// COLOUR PALETTE
 
 document.querySelectorAll('.color-swatch').forEach(swatch => {
   swatch.addEventListener('click', () => {
@@ -230,8 +207,14 @@ document.querySelectorAll('.color-swatch').forEach(swatch => {
 
     swatch.classList.add('selected');
     drawingEngine.setColor(swatch.dataset.color);
+
+    if (airCursor.classList.contains('visible')) {
+      updateAirCursorAppearance(currentCursorMode);
+    }
   });
 });
+
+// UNDO / REDO / CLEAR
 
 document.querySelector('#undo-btn').addEventListener('click', () => {
   drawingEngine.undo();
@@ -291,38 +274,33 @@ function resetGestureRecognizers() {
   gestureRecognizers.forEach(recognizer => recognizer.reset());
   gestureRecognizers.clear();
 }
-// CONVERT HAND POSITION TO CANVAS POSITION
+// HAND POSITION TO CANVAS POSITION
 
 function getCanvasPosition(landmarks, gesture) {
   const rect = canvas.getBoundingClientRect();
 
-  let midpointX;
-  let midpointY;
+  let x;
+  let y;
 
   if (gesture === 'PINCH') {
-    // Midpoint between thumb tip and index fingertip.
-    midpointX = (landmarks[4].x + landmarks[8].x) / 2;
-    midpointY = (landmarks[4].y + landmarks[8].y) / 2;
+    x = (landmarks[4].x + landmarks[8].x) / 2;
+    y = (landmarks[4].y + landmarks[8].y) / 2;
   } else if (gesture === 'POINTING') {
-    // Index fingertip.
-    midpointX = landmarks[8].x;
-    midpointY = landmarks[8].y;
+    x = landmarks[8].x;
+    y = landmarks[8].y;
   } else {
-    // Approximate palm centre.
     const palmLandmarks = [0, 5, 9, 13, 17];
 
-    midpointX = palmLandmarks.reduce(
-      (sum, index) => sum + landmarks[index].x, 0
-    ) / palmLandmarks.length;
+    x = palmLandmarks.reduce((sum, i) => sum + landmarks[i].x, 0) /
+      palmLandmarks.length;
 
-    midpointY = palmLandmarks.reduce(
-      (sum, index) => sum + landmarks[index].y, 0
-    ) / palmLandmarks.length;
+    y = palmLandmarks.reduce((sum, i) => sum + landmarks[i].y, 0) /
+      palmLandmarks.length;
   }
 
   return {
-    x: (1 - midpointX) * rect.width,
-    y: midpointY * rect.height
+    x: (1 - x) * rect.width,
+    y: y * rect.height
   };
 }
 
@@ -330,7 +308,46 @@ function getCanvasPosition(landmarks, gesture) {
 
 const airCursor = document.querySelector('#air-cursor');
 
-function showAirCursor(point) {
+let currentCursorMode = 'pointing';
+
+function updateAirCursorAppearance(mode) {
+  currentCursorMode = mode;
+
+  if (mode === 'brush') {
+    // Use the actual drawing brush diameter.
+    const diameter = Math.max(12, drawingEngine.brushSize);
+
+    airCursor.style.width = `${diameter}px`;
+    airCursor.style.height = `${diameter}px`;
+    airCursor.style.borderColor = drawingEngine.color;
+    airCursor.style.backgroundColor = `${drawingEngine.color}22`;
+    airCursor.style.boxShadow = `0 0 0 2px ${drawingEngine.color}33`;
+
+  } else if (mode === 'eraser') {
+    // Use the actual eraser diameter.
+    const diameter = Math.max(12, drawingEngine.brushSize);
+
+    airCursor.style.width = `${diameter}px`;
+    airCursor.style.height = `${diameter}px`;
+    airCursor.style.borderColor = '#292B26';
+    airCursor.style.backgroundColor = 'rgba(255,255,255,0.18)';
+    airCursor.style.boxShadow = '0 0 0 2px rgba(41,43,38,0.18)';
+
+  } else {
+    // Small cursor for pointing/navigation.
+    airCursor.style.width = '18px';
+    airCursor.style.height = '18px';
+    airCursor.style.borderColor = '#E96B50';
+    airCursor.style.backgroundColor = 'rgba(233,107,80,0.15)';
+    airCursor.style.boxShadow = '0 0 0 2px rgba(233,107,80,0.18)';
+  }
+
+  airCursor.dataset.mode = mode;
+}
+
+function showAirCursor(point, mode = 'pointing') {
+  updateAirCursorAppearance(mode);
+
   airCursor.style.left = `${point.x}px`;
   airCursor.style.top = `${point.y}px`;
   airCursor.classList.add('visible');
@@ -349,12 +366,12 @@ function handleGestureDrawing(result) {
     return;
   }
 
-  // POINTING: cursor follows index fingertip.
+  // POINTING: small cursor follows the index fingertip.
   if (result.gesture === 'POINTING') {
     drawingEngine.stopDrawing();
 
     const point = getCanvasPosition(result.landmarks, 'POINTING');
-    showAirCursor(point);
+    showAirCursor(point, 'pointing');
 
     gestureDetail.textContent =
       'Pointing: move your index finger to control the AIR PEN cursor.';
@@ -362,12 +379,10 @@ function handleGestureDrawing(result) {
     return;
   }
 
-  // PINCH: cursor follows the pinch point while drawing.
+  // PINCH: brush preview follows the pinch position.
   if (result.gesture === 'PINCH') {
     const point = getCanvasPosition(result.landmarks, 'PINCH');
-
-    // Keep the cursor visible during drawing.
-    showAirCursor(point);
+    showAirCursor(point, 'brush');
 
     if (drawingEngine.tool !== 'Brush') {
       drawingEngine.stopDrawing();
@@ -384,17 +399,15 @@ function handleGestureDrawing(result) {
     updateCanvasEmptyState();
 
     gestureDetail.textContent =
-      'Pinch: drawing. The cursor shows your current drawing position.';
+      'Pinch: drawing. Preview shows the brush size and colour.';
 
     return;
   }
 
-  // FIST: cursor follows the centre of the palm while erasing.
+  // FIST: eraser preview follows the palm centre.
   if (result.gesture === 'FIST') {
     const point = getCanvasPosition(result.landmarks, 'FIST');
-
-    // Keep the cursor visible during erasing.
-    showAirCursor(point);
+    showAirCursor(point, 'eraser');
 
     if (drawingEngine.tool !== 'Eraser') {
       drawingEngine.stopDrawing();
@@ -409,12 +422,12 @@ function handleGestureDrawing(result) {
     }
 
     gestureDetail.textContent =
-      'Fist: erasing. The cursor shows your current eraser position.';
+      'Fist: erasing. Preview shows the eraser diameter.';
 
     return;
   }
 
-  // OPEN PALM OR UNKNOWN: stop the current action.
+  // OPEN PALM OR UNKNOWN: stop drawing and hide cursor.
   drawingEngine.stopDrawing();
   hideAirCursor();
 }
@@ -431,7 +444,6 @@ const handTracker = new HandTracker(
   video,
   handOverlay,
   ({ handCount, landmarks, handednesses }) => {
-
     if (handCount === 0 || !landmarks?.length) {
       drawingEngine.stopDrawing();
       hideAirCursor();
@@ -439,7 +451,6 @@ const handTracker = new HandTracker(
 
       gestureStatusText.textContent = 'No hands detected';
       gestureDetail.textContent = 'Show your hand clearly to the camera.';
-
       gestureDot.classList.remove('tracking-active');
       return;
     }
@@ -481,7 +492,6 @@ const handTracker = new HandTracker(
       detectedGestures.push(`${handLabel}: ${gestureLabel}`);
     });
 
-    // Remove recognizers for hands no longer visible.
     for (const [handLabel, recognizer] of gestureRecognizers) {
       if (!activeHandKeys.has(handLabel)) {
         recognizer.reset();
@@ -494,7 +504,6 @@ const handTracker = new HandTracker(
 
     gestureDetail.textContent = detectedGestures.join(' · ');
 
-    // First detected hand controls drawing and erasing.
     if (drawingHandResult) {
       handleGestureDrawing(drawingHandResult);
     }
@@ -515,7 +524,6 @@ function updateCameraUI(isActive) {
   cameraPlaceholder.classList.toggle('hidden', isActive);
   cameraLiveLabel.classList.toggle('visible', isActive);
   cameraIndicator.classList.toggle('active', isActive);
-
   cameraToggleButton.classList.toggle('camera-active', isActive);
 
   cameraButtonText.textContent = isActive ? 'Stop Camera' : 'Start Camera';
