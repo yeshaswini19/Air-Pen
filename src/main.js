@@ -1,3 +1,4 @@
+
 import './style.css';
 
 import { DrawingEngine } from './engine/DrawingEngine.js';
@@ -46,9 +47,12 @@ document.querySelector('#app').innerHTML = `
             <span class="canvas-subheading">Your space. Your imagination.</span>
           </div>
           <div class="canvas-controls">
-            <button id="zoom-out" class="small-control">−</button>
+            <button id="zoom-out" class="small-control" title="Zoom out">−</button>
             <span id="zoom-level">100%</span>
-            <button id="zoom-in" class="small-control">+</button>
+            <button id="zoom-in" class="small-control" title="Zoom in">+</button>
+            <button id="rotate-left" class="small-control" title="Rotate left">↶</button>
+            <button id="rotate-right" class="small-control" title="Rotate right">↷</button>
+            <button id="reset-view" class="small-control" title="Reset view">⟲</button>
           </div>
         </div>
 
@@ -67,6 +71,7 @@ document.querySelector('#app').innerHTML = `
 
         <div class="canvas-footer">
           <span>CANVAS · 1280 × 720</span>
+          <span id="rotation-level">ROTATION · 0°</span>
           <span>DESIGNED TO CREATE</span>
         </div>
       </section>
@@ -152,7 +157,9 @@ document.querySelector('#app').innerHTML = `
   </div>
 `;
 
+// --------------------------------------------------
 // DRAWING ENGINE
+// --------------------------------------------------
 
 const canvas = document.querySelector('#drawing-canvas');
 const drawingEngine = new DrawingEngine(canvas);
@@ -175,29 +182,74 @@ function updateActiveTool(tool) {
 document.querySelectorAll('.tool-button').forEach(button => {
   button.addEventListener('click', () => {
     const tool = button.dataset.tool;
+
     drawingEngine.stopDrawing();
     drawingEngine.setTool(tool);
     updateActiveTool(tool);
   });
 });
 
+// --------------------------------------------------
+// VIEWPORT UI
+// --------------------------------------------------
+
+const zoomLevel = document.querySelector('#zoom-level');
+const rotationLevel = document.querySelector('#rotation-level');
+
+function updateViewportUI(viewport) {
+  zoomLevel.textContent = `${Math.round(viewport.zoom * 100)}%`;
+
+  const degrees = Math.round(
+    viewport.rotation * 180 / Math.PI
+  );
+
+  rotationLevel.textContent = `ROTATION · ${degrees}°`;
+}
+
+drawingEngine.onViewportChange = updateViewportUI;
+updateViewportUI(drawingEngine.viewport);
+
+document.querySelector('#zoom-in').addEventListener('click', () => {
+  drawingEngine.zoomBy(1.1);
+});
+
+document.querySelector('#zoom-out').addEventListener('click', () => {
+  drawingEngine.zoomBy(1 / 1.1);
+});
+
+document.querySelector('#rotate-left').addEventListener('click', () => {
+  drawingEngine.rotateBy(-Math.PI / 12);
+});
+
+document.querySelector('#rotate-right').addEventListener('click', () => {
+  drawingEngine.rotateBy(Math.PI / 12);
+});
+
+document.querySelector('#reset-view').addEventListener('click', () => {
+  drawingEngine.resetViewport();
+});
+
+// --------------------------------------------------
 // BRUSH SIZE
+// --------------------------------------------------
 
 const brushSizeInput = document.querySelector('#brush-size');
 const brushSizeValue = document.querySelector('#brush-size-value');
 
 brushSizeInput.addEventListener('input', event => {
   const size = Number(event.target.value);
+
   brushSizeValue.textContent = `${size} px`;
   drawingEngine.setBrushSize(size);
 
-  // Update the visible preview immediately if it is on screen.
   if (airCursor.classList.contains('visible')) {
     updateAirCursorAppearance(currentCursorMode);
   }
 });
 
+// --------------------------------------------------
 // COLOUR PALETTE
+// --------------------------------------------------
 
 document.querySelectorAll('.color-swatch').forEach(swatch => {
   swatch.addEventListener('click', () => {
@@ -214,7 +266,9 @@ document.querySelectorAll('.color-swatch').forEach(swatch => {
   });
 });
 
+// --------------------------------------------------
 // UNDO / REDO / CLEAR
+// --------------------------------------------------
 
 document.querySelector('#undo-btn').addEventListener('click', () => {
   drawingEngine.undo();
@@ -233,27 +287,16 @@ document.querySelector('#clear-btn').addEventListener('click', () => {
   }
 });
 
-// ZOOM DISPLAY
-
-let zoom = 100;
-const zoomLevel = document.querySelector('#zoom-level');
-
-document.querySelector('#zoom-in').addEventListener('click', () => {
-  zoom = Math.min(zoom + 10, 200);
-  zoomLevel.textContent = `${zoom}%`;
-});
-
-document.querySelector('#zoom-out').addEventListener('click', () => {
-  zoom = Math.max(zoom - 10, 50);
-  zoomLevel.textContent = `${zoom}%`;
-});
-
+// --------------------------------------------------
 // CAMERA MANAGER
+// --------------------------------------------------
 
 const video = document.querySelector('#camera-video');
 const cameraManager = new CameraManager(video);
 
+// --------------------------------------------------
 // GESTURE RECOGNITION
+// --------------------------------------------------
 
 const gestureRecognizers = new Map();
 
@@ -274,7 +317,10 @@ function resetGestureRecognizers() {
   gestureRecognizers.forEach(recognizer => recognizer.reset());
   gestureRecognizers.clear();
 }
+
+// --------------------------------------------------
 // HAND POSITION TO CANVAS POSITION
+// --------------------------------------------------
 
 function getCanvasPosition(landmarks, gesture) {
   const rect = canvas.getBoundingClientRect();
@@ -304,7 +350,9 @@ function getCanvasPosition(landmarks, gesture) {
   };
 }
 
+// --------------------------------------------------
 // AIR CURSOR
+// --------------------------------------------------
 
 const airCursor = document.querySelector('#air-cursor');
 
@@ -314,7 +362,6 @@ function updateAirCursorAppearance(mode) {
   currentCursorMode = mode;
 
   if (mode === 'brush') {
-    // Use the actual drawing brush diameter.
     const diameter = Math.max(12, drawingEngine.brushSize);
 
     airCursor.style.width = `${diameter}px`;
@@ -324,7 +371,6 @@ function updateAirCursorAppearance(mode) {
     airCursor.style.boxShadow = `0 0 0 2px ${drawingEngine.color}33`;
 
   } else if (mode === 'eraser') {
-    // Use the actual eraser diameter.
     const diameter = Math.max(12, drawingEngine.brushSize);
 
     airCursor.style.width = `${diameter}px`;
@@ -334,7 +380,6 @@ function updateAirCursorAppearance(mode) {
     airCursor.style.boxShadow = '0 0 0 2px rgba(41,43,38,0.18)';
 
   } else {
-    // Small cursor for pointing/navigation.
     airCursor.style.width = '18px';
     airCursor.style.height = '18px';
     airCursor.style.borderColor = '#E96B50';
@@ -357,7 +402,96 @@ function hideAirCursor() {
   airCursor.classList.remove('visible');
 }
 
+// --------------------------------------------------
+// TWO-HAND NAVIGATION
+// --------------------------------------------------
+
+let navigationState = null;
+
+function getDistance(pointA, pointB) {
+  return Math.hypot(
+    pointB.x - pointA.x,
+    pointB.y - pointA.y
+  );
+}
+
+function getAngle(pointA, pointB) {
+  return Math.atan2(
+    pointB.y - pointA.y,
+    pointB.x - pointA.x
+  );
+}
+
+function getMidpoint(pointA, pointB) {
+  return {
+    x: (pointA.x + pointB.x) / 2,
+    y: (pointA.y + pointB.y) / 2
+  };
+}
+
+function normalizeAngle(angle) {
+  while (angle > Math.PI) angle -= Math.PI * 2;
+  while (angle < -Math.PI) angle += Math.PI * 2;
+
+  return angle;
+}
+
+function handleTwoHandNavigation(results) {
+  const firstPoint = getCanvasPosition(results[0].landmarks, 'PINCH');
+  const secondPoint = getCanvasPosition(results[1].landmarks, 'PINCH');
+
+  const midpoint = getMidpoint(firstPoint, secondPoint);
+  const distance = getDistance(firstPoint, secondPoint);
+  const angle = getAngle(firstPoint, secondPoint);
+
+  if (!navigationState) {
+    navigationState = {
+      midpoint,
+      distance,
+      angle
+    };
+
+    drawingEngine.stopDrawing();
+    hideAirCursor();
+
+    gestureDetail.textContent =
+      'Two-hand navigation active. Move, spread or rotate your pinched hands.';
+
+    return;
+  }
+
+  const deltaX = midpoint.x - navigationState.midpoint.x;
+  const deltaY = midpoint.y - navigationState.midpoint.y;
+
+  const zoomFactor = distance / Math.max(navigationState.distance, 1);
+
+  const rotationDelta = normalizeAngle(
+    angle - navigationState.angle
+  );
+
+  // Ignore very small changes to reduce hand-tracking jitter.
+  if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+    drawingEngine.panBy(deltaX, deltaY);
+  }
+
+  if (Math.abs(zoomFactor - 1) > 0.005) {
+    drawingEngine.zoomAt(midpoint, zoomFactor);
+  }
+
+  if (Math.abs(rotationDelta) > 0.005) {
+    drawingEngine.rotateAt(midpoint, rotationDelta);
+  }
+
+  navigationState = {
+    midpoint,
+    distance,
+    angle
+  };
+}
+
+// --------------------------------------------------
 // GESTURE DRAWING AND CURSOR CONTROL
+// --------------------------------------------------
 
 function handleGestureDrawing(result) {
   if (!result?.stable) {
@@ -366,7 +500,6 @@ function handleGestureDrawing(result) {
     return;
   }
 
-  // POINTING: small cursor follows the index fingertip.
   if (result.gesture === 'POINTING') {
     drawingEngine.stopDrawing();
 
@@ -379,7 +512,6 @@ function handleGestureDrawing(result) {
     return;
   }
 
-  // PINCH: brush preview follows the pinch position.
   if (result.gesture === 'PINCH') {
     const point = getCanvasPosition(result.landmarks, 'PINCH');
     showAirCursor(point, 'brush');
@@ -404,7 +536,6 @@ function handleGestureDrawing(result) {
     return;
   }
 
-  // FIST: eraser preview follows the palm centre.
   if (result.gesture === 'FIST') {
     const point = getCanvasPosition(result.landmarks, 'FIST');
     showAirCursor(point, 'eraser');
@@ -427,12 +558,13 @@ function handleGestureDrawing(result) {
     return;
   }
 
-  // OPEN PALM OR UNKNOWN: stop drawing and hide cursor.
   drawingEngine.stopDrawing();
   hideAirCursor();
 }
 
+// --------------------------------------------------
 // HAND TRACKER
+// --------------------------------------------------
 
 const handOverlay = document.querySelector('#hand-overlay');
 
@@ -447,11 +579,13 @@ const handTracker = new HandTracker(
     if (handCount === 0 || !landmarks?.length) {
       drawingEngine.stopDrawing();
       hideAirCursor();
+      navigationState = null;
       resetGestureRecognizers();
 
       gestureStatusText.textContent = 'No hands detected';
       gestureDetail.textContent = 'Show your hand clearly to the camera.';
       gestureDot.classList.remove('tracking-active');
+
       return;
     }
 
@@ -459,8 +593,7 @@ const handTracker = new HandTracker(
 
     const activeHandKeys = new Set();
     const detectedGestures = [];
-
-    let drawingHandResult = null;
+    const recognitionResults = [];
 
     landmarks.forEach((handLandmarks, index) => {
       const handLabel =
@@ -481,9 +614,7 @@ const handTracker = new HandTracker(
 
       const result = recognizer.update(handLandmarks);
 
-      if (index === 0) {
-        drawingHandResult = result;
-      }
+      recognitionResults.push(result);
 
       const gestureLabel = result.stable
         ? getGestureLabel(result.gesture)
@@ -504,12 +635,31 @@ const handTracker = new HandTracker(
 
     gestureDetail.textContent = detectedGestures.join(' · ');
 
-    if (drawingHandResult) {
-      handleGestureDrawing(drawingHandResult);
+    // Both hands pinched = navigation mode.
+    if (
+      recognitionResults.length >= 2 &&
+      recognitionResults[0].stable &&
+      recognitionResults[1].stable &&
+      recognitionResults[0].gesture === 'PINCH' &&
+      recognitionResults[1].gesture === 'PINCH'
+    ) {
+      handleTwoHandNavigation(recognitionResults);
+      updateCanvasEmptyState();
+      return;
+    }
+
+    // Leaving two-hand navigation resets its reference measurements.
+    navigationState = null;
+
+    if (recognitionResults.length > 0) {
+      handleGestureDrawing(recognitionResults[0]);
     }
   }
 );
+
+// --------------------------------------------------
 // CAMERA UI
+// --------------------------------------------------
 
 const cameraToggleButton = document.querySelector('#camera-toggle-btn');
 const cameraButtonText = document.querySelector('#camera-button-text');
@@ -535,6 +685,7 @@ function updateCameraUI(isActive) {
 function resetTrackingUI() {
   drawingEngine.stopDrawing();
   hideAirCursor();
+  navigationState = null;
   resetGestureRecognizers();
 
   gestureStatusText.textContent = 'Tracking not started';
@@ -574,7 +725,7 @@ cameraToggleButton.addEventListener('click', async () => {
       await handTracker.start();
 
       cameraStatus.textContent = 'Camera and hand tracking are active.';
-      console.log('AIR PEN gesture drawing and erasing are ready.');
+      console.log('AIR PEN gesture drawing and navigation are ready.');
 
     } catch (trackingError) {
       handTracker.stop();
@@ -600,7 +751,9 @@ cameraToggleButton.addEventListener('click', async () => {
   }
 });
 
+// --------------------------------------------------
 // PLACEHOLDER ACTIONS
+// --------------------------------------------------
 
 document.querySelector('#save-btn').addEventListener('click', () => {
   alert('Artwork saving will be implemented in a later phase.');
@@ -614,7 +767,9 @@ document.querySelector('#add-layer-btn').addEventListener('click', () => {
   alert('Layer management will be implemented in a later phase.');
 });
 
+// --------------------------------------------------
 // KEYBOARD SHORTCUTS
+// --------------------------------------------------
 
 document.addEventListener('keydown', event => {
   const target = event.target;
@@ -639,11 +794,13 @@ document.addEventListener('keydown', event => {
   }
 });
 
+// --------------------------------------------------
 // CLEANUP
+// --------------------------------------------------
 
 window.addEventListener('beforeunload', () => {
   handTracker.destroy();
-  drawingEngine.stopDrawing();
+  drawingEngine.destroy();
   cameraManager.stop();
   resetGestureRecognizers();
 });
