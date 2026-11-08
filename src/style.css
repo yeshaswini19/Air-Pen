@@ -299,6 +299,59 @@ button:disabled {
   cursor: crosshair;
 }
 
+
+/* GESTURE-CONTROLLED AIR CURSOR */
+
+.air-cursor {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--coral);
+  border-radius: 50%;
+  background: rgba(251, 248, 238, 0.72);
+  box-shadow: 0 0 0 5px rgba(233, 107, 80, 0.12);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease,
+    visibility 0.12s ease;
+}
+
+.air-cursor.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.air-cursor-core {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral);
+}
+
+.air-cursor-label {
+  position: absolute;
+  left: 20px;
+  top: 19px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--canvas);
+  font-family: 'DM Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
 .canvas-empty {
   position: absolute;
   inset: 0;

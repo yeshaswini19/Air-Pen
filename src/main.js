@@ -1,4 +1,3 @@
-
 import './style.css';
 
 import { DrawingEngine } from './engine/DrawingEngine.js';
@@ -8,7 +7,6 @@ import { GestureRecognizer } from './gestures/GestureRecognizer.js';
 
 document.querySelector('#app').innerHTML = `
   <div class="app-shell">
-
     <header class="topbar">
       <div class="brand">
         <span class="brand-mark">✳</span>
@@ -28,7 +26,6 @@ document.querySelector('#app').innerHTML = `
     </header>
 
     <main class="workspace">
-
       <aside class="left-panel">
         <div class="panel-label">TOOLS</div>
 
@@ -36,23 +33,18 @@ document.querySelector('#app').innerHTML = `
           <button class="tool-button active" data-tool="Brush">
             <span>✎</span><small>Brush</small>
           </button>
-
           <button class="tool-button" data-tool="Eraser">
             <span>◩</span><small>Eraser</small>
           </button>
-
           <button class="tool-button" data-tool="Select">
             <span>⌖</span><small>Select</small>
           </button>
-
           <button class="tool-button" data-tool="Shapes">
             <span>◇</span><small>Shapes</small>
           </button>
-
           <button class="tool-button" data-tool="Symmetry">
             <span>✥</span><small>Symmetry</small>
           </button>
-
           <button class="tool-button" data-tool="Mandala">
             <span>❋</span><small>Mandala</small>
           </button>
@@ -64,7 +56,6 @@ document.querySelector('#app').innerHTML = `
       </aside>
 
       <section class="canvas-area">
-
         <div class="canvas-toolbar">
           <div>
             <span class="canvas-heading">Creative workspace</span>
@@ -81,6 +72,11 @@ document.querySelector('#app').innerHTML = `
         <div class="canvas-container">
           <canvas id="drawing-canvas"></canvas>
 
+          <div class="air-cursor" id="air-cursor" aria-hidden="true">
+            <span class="air-cursor-core"></span>
+            <span class="air-cursor-label">AIR PEN</span>
+          </div>
+
           <div class="canvas-empty" id="canvas-empty">
             <span class="empty-symbol">✳</span>
             <h2>Your canvas is waiting.</h2>
@@ -92,11 +88,9 @@ document.querySelector('#app').innerHTML = `
           <span>CANVAS · 1280 × 720</span>
           <span>DESIGNED TO CREATE</span>
         </div>
-
       </section>
 
       <aside class="right-panel">
-
         <section class="inspector-section">
           <div class="panel-label">TOOL SETTINGS</div>
 
@@ -110,14 +104,12 @@ document.querySelector('#app').innerHTML = `
               <label for="brush-size">Brush size</label>
               <strong id="brush-size-value">8 px</strong>
             </div>
-
             <input type="range" id="brush-size" min="1" max="40" value="8" />
           </div>
         </section>
 
         <section class="inspector-section">
           <div class="panel-label">COLOUR PALETTE</div>
-
           <div class="color-palette">
             <button class="color-swatch selected" data-color="#E96B50" style="--swatch:#E96B50"></button>
             <button class="color-swatch" data-color="#292B26" style="--swatch:#292B26"></button>
@@ -133,13 +125,11 @@ document.querySelector('#app').innerHTML = `
             <div class="panel-label">LAYERS</div>
             <button class="text-button" id="add-layer-btn">+ Add</button>
           </div>
-
           <div class="layer-item">
             <span class="layer-eye">◉</span>
             <span>Layer 01</span>
             <span class="layer-tag">ACTIVE</span>
           </div>
-
           <p class="muted-note">Layer controls will be enabled in a later phase.</p>
         </section>
 
@@ -173,17 +163,14 @@ document.querySelector('#app').innerHTML = `
 
         <section class="inspector-section gesture-section">
           <div class="panel-label">GESTURE RECOGNITION</div>
-
           <div class="gesture-status">
             <span class="gesture-dot" id="gesture-dot"></span>
             <span id="gesture-status-text">Tracking not started</span>
           </div>
-
           <p class="muted-note" id="gesture-detail">
             Start your camera to recognise hand gestures.
           </p>
         </section>
-
       </aside>
     </main>
 
@@ -192,13 +179,10 @@ document.querySelector('#app').innerHTML = `
       <span>DRAWING ENGINE ACTIVE</span>
       <span id="footer-camera-status">CAMERA OFF</span>
     </footer>
-
   </div>
 `;
 
-// --------------------------------------------------
 // DRAWING ENGINE
-// --------------------------------------------------
 
 const canvas = document.querySelector('#drawing-canvas');
 const drawingEngine = new DrawingEngine(canvas);
@@ -225,7 +209,6 @@ document.querySelectorAll('.tool-button').forEach(button => {
 
     drawingEngine.stopDrawing();
     drawingEngine.setTool(tool);
-
     updateActiveTool(tool);
   });
 });
@@ -235,7 +218,6 @@ const brushSizeValue = document.querySelector('#brush-size-value');
 
 brushSizeInput.addEventListener('input', event => {
   const size = Number(event.target.value);
-
   brushSizeValue.textContent = `${size} px`;
   drawingEngine.setBrushSize(size);
 });
@@ -268,12 +250,9 @@ document.querySelector('#clear-btn').addEventListener('click', () => {
   }
 });
 
-// --------------------------------------------------
 // ZOOM DISPLAY
-// --------------------------------------------------
 
 let zoom = 100;
-
 const zoomLevel = document.querySelector('#zoom-level');
 
 document.querySelector('#zoom-in').addEventListener('click', () => {
@@ -286,16 +265,12 @@ document.querySelector('#zoom-out').addEventListener('click', () => {
   zoomLevel.textContent = `${zoom}%`;
 });
 
-// --------------------------------------------------
 // CAMERA MANAGER
-// --------------------------------------------------
 
 const video = document.querySelector('#camera-video');
 const cameraManager = new CameraManager(video);
 
-// --------------------------------------------------
 // GESTURE RECOGNITION
-// --------------------------------------------------
 
 const gestureRecognizers = new Map();
 
@@ -316,8 +291,8 @@ function resetGestureRecognizers() {
   gestureRecognizers.forEach(recognizer => recognizer.reset());
   gestureRecognizers.clear();
 }
+// CONVERT HAND POSITION TO CANVAS POSITION
 
-// Convert a normalised MediaPipe position into canvas coordinates.
 function getCanvasPosition(landmarks, gesture) {
   const rect = canvas.getBoundingClientRect();
 
@@ -325,11 +300,15 @@ function getCanvasPosition(landmarks, gesture) {
   let midpointY;
 
   if (gesture === 'PINCH') {
-    // Pinch position: midpoint between thumb tip and index tip.
+    // Midpoint between thumb tip and index fingertip.
     midpointX = (landmarks[4].x + landmarks[8].x) / 2;
     midpointY = (landmarks[4].y + landmarks[8].y) / 2;
+  } else if (gesture === 'POINTING') {
+    // Index fingertip.
+    midpointX = landmarks[8].x;
+    midpointY = landmarks[8].y;
   } else {
-    // Eraser position: approximate centre of the palm.
+    // Approximate palm centre.
     const palmLandmarks = [0, 5, 9, 13, 17];
 
     midpointX = palmLandmarks.reduce(
@@ -347,49 +326,100 @@ function getCanvasPosition(landmarks, gesture) {
   };
 }
 
-// --------------------------------------------------
-// PINCH-TO-DRAW + FIST-TO-ERASE
-// --------------------------------------------------
+// AIR CURSOR
+
+const airCursor = document.querySelector('#air-cursor');
+
+function showAirCursor(point) {
+  airCursor.style.left = `${point.x}px`;
+  airCursor.style.top = `${point.y}px`;
+  airCursor.classList.add('visible');
+}
+
+function hideAirCursor() {
+  airCursor.classList.remove('visible');
+}
+
+// GESTURE DRAWING AND CURSOR CONTROL
 
 function handleGestureDrawing(result) {
   if (!result?.stable) {
     drawingEngine.stopDrawing();
+    hideAirCursor();
     return;
   }
 
-  let activeGestureTool = null;
+  // POINTING: cursor follows index fingertip.
+  if (result.gesture === 'POINTING') {
+    drawingEngine.stopDrawing();
 
+    const point = getCanvasPosition(result.landmarks, 'POINTING');
+    showAirCursor(point);
+
+    gestureDetail.textContent =
+      'Pointing: move your index finger to control the AIR PEN cursor.';
+
+    return;
+  }
+
+  // PINCH: cursor follows the pinch point while drawing.
   if (result.gesture === 'PINCH') {
-    activeGestureTool = 'Brush';
-  } else if (result.gesture === 'FIST') {
-    activeGestureTool = 'Eraser';
-  } else {
-    // Open palm, pointing or unknown gesture stops the current stroke.
-    drawingEngine.stopDrawing();
+    const point = getCanvasPosition(result.landmarks, 'PINCH');
+
+    // Keep the cursor visible during drawing.
+    showAirCursor(point);
+
+    if (drawingEngine.tool !== 'Brush') {
+      drawingEngine.stopDrawing();
+      drawingEngine.setTool('Brush');
+      updateActiveTool('Brush');
+    }
+
+    if (!drawingEngine.isDrawing) {
+      drawingEngine.startDrawingAt(point);
+    } else {
+      drawingEngine.drawAt(point);
+    }
+
+    updateCanvasEmptyState();
+
+    gestureDetail.textContent =
+      'Pinch: drawing. The cursor shows your current drawing position.';
+
     return;
   }
 
-  // Change tools only when necessary.
-  if (drawingEngine.tool !== activeGestureTool) {
-    drawingEngine.stopDrawing();
-    drawingEngine.setTool(activeGestureTool);
-    updateActiveTool(activeGestureTool);
+  // FIST: cursor follows the centre of the palm while erasing.
+  if (result.gesture === 'FIST') {
+    const point = getCanvasPosition(result.landmarks, 'FIST');
+
+    // Keep the cursor visible during erasing.
+    showAirCursor(point);
+
+    if (drawingEngine.tool !== 'Eraser') {
+      drawingEngine.stopDrawing();
+      drawingEngine.setTool('Eraser');
+      updateActiveTool('Eraser');
+    }
+
+    if (!drawingEngine.isDrawing) {
+      drawingEngine.startDrawingAt(point);
+    } else {
+      drawingEngine.drawAt(point);
+    }
+
+    gestureDetail.textContent =
+      'Fist: erasing. The cursor shows your current eraser position.';
+
+    return;
   }
 
-  const point = getCanvasPosition(result.landmarks, result.gesture);
-
-  if (!drawingEngine.isDrawing) {
-    drawingEngine.startDrawingAt(point);
-  } else {
-    drawingEngine.drawAt(point);
-  }
-
-  updateCanvasEmptyState();
+  // OPEN PALM OR UNKNOWN: stop the current action.
+  drawingEngine.stopDrawing();
+  hideAirCursor();
 }
 
-// --------------------------------------------------
 // HAND TRACKER
-// --------------------------------------------------
 
 const handOverlay = document.querySelector('#hand-overlay');
 
@@ -404,6 +434,7 @@ const handTracker = new HandTracker(
 
     if (handCount === 0 || !landmarks?.length) {
       drawingEngine.stopDrawing();
+      hideAirCursor();
       resetGestureRecognizers();
 
       gestureStatusText.textContent = 'No hands detected';
@@ -450,7 +481,7 @@ const handTracker = new HandTracker(
       detectedGestures.push(`${handLabel}: ${gestureLabel}`);
     });
 
-    // Remove recognizers for hands that are no longer visible.
+    // Remove recognizers for hands no longer visible.
     for (const [handLabel, recognizer] of gestureRecognizers) {
       if (!activeHandKeys.has(handLabel)) {
         recognizer.reset();
@@ -463,16 +494,13 @@ const handTracker = new HandTracker(
 
     gestureDetail.textContent = detectedGestures.join(' · ');
 
-    // The first detected hand controls drawing and erasing.
+    // First detected hand controls drawing and erasing.
     if (drawingHandResult) {
       handleGestureDrawing(drawingHandResult);
     }
   }
 );
-
-// --------------------------------------------------
 // CAMERA UI
-// --------------------------------------------------
 
 const cameraToggleButton = document.querySelector('#camera-toggle-btn');
 const cameraButtonText = document.querySelector('#camera-button-text');
@@ -498,6 +526,7 @@ function updateCameraUI(isActive) {
 
 function resetTrackingUI() {
   drawingEngine.stopDrawing();
+  hideAirCursor();
   resetGestureRecognizers();
 
   gestureStatusText.textContent = 'Tracking not started';
@@ -534,7 +563,6 @@ cameraToggleButton.addEventListener('click', async () => {
 
     try {
       resetGestureRecognizers();
-
       await handTracker.start();
 
       cameraStatus.textContent = 'Camera and hand tracking are active.';
@@ -548,7 +576,6 @@ cameraToggleButton.addEventListener('click', async () => {
         `Camera is working, but hand tracking failed: ${trackingError.message}`;
 
       cameraStatus.classList.add('error');
-
       console.error('Hand tracking error:', trackingError);
     }
 
@@ -565,9 +592,7 @@ cameraToggleButton.addEventListener('click', async () => {
   }
 });
 
-// --------------------------------------------------
 // PLACEHOLDER ACTIONS
-// --------------------------------------------------
 
 document.querySelector('#save-btn').addEventListener('click', () => {
   alert('Artwork saving will be implemented in a later phase.');
@@ -581,9 +606,7 @@ document.querySelector('#add-layer-btn').addEventListener('click', () => {
   alert('Layer management will be implemented in a later phase.');
 });
 
-// --------------------------------------------------
 // KEYBOARD SHORTCUTS
-// --------------------------------------------------
 
 document.addEventListener('keydown', event => {
   const target = event.target;
@@ -608,9 +631,7 @@ document.addEventListener('keydown', event => {
   }
 });
 
-// --------------------------------------------------
 // CLEANUP
-// --------------------------------------------------
 
 window.addEventListener('beforeunload', () => {
   handTracker.destroy();
